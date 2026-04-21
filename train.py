@@ -1,4 +1,5 @@
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader, random_split
 from dataset import TabulatureDataset, collate_fn_ctc
 from model import TabulatureLightningModel
@@ -24,7 +25,8 @@ def main():
         batch_size=20,
         shuffle=True,
         collate_fn=collate_fn_ctc,
-        num_workers=4
+        num_workers=4,
+        persistent_workers = True
     )
 
     # Taśmociąg do kartkówek (nie mieszamy - shuffle=False)
@@ -35,15 +37,30 @@ def main():
     print("Inicjalizacja Modelu...")
     model = TabulatureLightningModel(num_classes=29)
 
-    print("Start treningu!")
-    trainer = pl.Trainer(
-        max_epochs=20,
-        accelerator='auto',
-        log_every_n_steps=1,
-        check_val_every_n_epoch=1  # Robimy kartkówkę co 1 epokę
+    checkpoint_callback = ModelCheckpoint(
+        dirpath='saved_models',
+        filename='best-model-{epoch:02d}-{val_loss:.2f}',
+        save_top_k=1,  # Zapisz tylko jeden, absolutnie najlepszy wynik
+        monitor='val_loss',
+        mode='min'
     )
 
-    # Odpalamy trening podając OBA taśmociągi
+    early_stop_callback = EarlyStopping(
+        monitor='val_loss',
+        patience=10,
+        verbose=True,
+        mode='min'
+    )
+
+    print("Start treningu!")
+    trainer = pl.Trainer(
+        max_epochs=100, # Zwiększamy do 100!
+        accelerator='auto',
+        log_every_n_steps=10, # Możesz zmienić na 10 przy dużym zbiorze, żeby nie spamić logami
+        check_val_every_n_epoch=1,
+        callbacks=[checkpoint_callback, early_stop_callback] # <--- PODPINAMY GADŻETY
+    )
+
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
 
