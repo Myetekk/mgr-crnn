@@ -1,66 +1,88 @@
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader, random_split
 from dataset import TabulatureDataset, collate_fn_ctc
 from model import TabulatureLightningModel
-import torch
+from datetime import datetime
+
+# Optymalizacja dla kart NVIDIA RTX
 torch.set_float32_matmul_precision('medium')
 
+# =====================================================================
+# USTAWIENIA GŁÓWNE (Hiperparametry)
+# =====================================================================
+DATA_IMAGES = '..\\dataset\\images'
+DATA_LABELS = '..\\dataset\\labels_model_b'
+
+BATCH_SIZE = 20       # Uwaga: zmniejsz do 16, jeśli wywali błąd CUDA out of memory
+NUM_WORKERS = 4       # Uwaga: zmniejsz do 2, jeśli wywali błąd openBLAS (brak RAM)
+MAX_EPOCHS = 100      # Maksymalna liczba epok treningu
+PATIENCE = 10         # Early Stopping: po ilu epokach bez poprawy przerwać
+# =====================================================================
 
 def main():
-    print("Inicjalizacja Datasetu...")
-    # Ładujemy WSZYSTKIE wygenerowane dane
-    full_dataset = TabulatureDataset(image_dir='..\\dataset\\images', label_dir='..\\dataset\\labels_model_b')
+    # --- 1. PRZYGOTOWANIE DANYCH ---
+    print("\n[1/4] Inicjalizacja i podział Datasetu...")
+    full_dataset = TabulatureDataset(image_dir=DATA_IMAGES, label_dir=DATA_LABELS)
 
-    # Dzielimy dane: 80% trening (nauka), 20% walidacja (kartkówka)
     train_size = int(0.8 * len(full_dataset))
     val_size = len(full_dataset) - train_size
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
-    print(f"Dane podzielone: {train_size} do treningu, {val_size} do walidacji.")
+    print(f" -> Trening: {train_size} próbek | Walidacja: {val_size} próbek")
 
-    # Taśmociąg do nauki (mieszamy dane - shuffle=True)
+    # --- 2. TAŚMOCIĄGI (DATALOADERY) ---
+    print("[2/4] Konfiguracja Dataloaderów...")
     train_loader = DataLoader(
         train_dataset,
-        batch_size=20,
+        batch_size=BATCH_SIZE,
         shuffle=True,
         collate_fn=collate_fn_ctc,
-        num_workers=4,
-        persistent_workers = True
+        num_workers=NUM_WORKERS,
+        persistent_workers=True
     )
 
-    # Taśmociąg do kartkówek (nie mieszamy - shuffle=False)
     val_loader = DataLoader(
-        val_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn_ctc, num_workers=4
+        val_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        collate_fn=collate_fn_ctc,
+        num_workers=NUM_WORKERS,
+        persistent_workers=True
     )
 
-    print("Inicjalizacja Modelu...")
+    # --- 3. MODEL I NARZĘDZIA (CALLBACKI) ---
+    print("[3/4] Inicjalizacja Modelu i Narzędzi...")
     model = TabulatureLightningModel(num_classes=29)
+    start_time = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
     checkpoint_callback = ModelCheckpoint(
         dirpath='saved_models',
-        filename='best-model-{epoch:02d}-{val_loss:.2f}',
-        save_top_k=1,  # Zapisz tylko jeden, absolutnie najlepszy wynik
-        monitor='val_loss',
+        filename=f'best_model_{start_time}',
+        save_top_k=1,
+        monitor='val_cer',
         mode='min'
     )
 
     early_stop_callback = EarlyStopping(
-        monitor='val_loss',
-        patience=10,
+        monitor='val_cer',
+        patience=PATIENCE,
         verbose=True,
         mode='min'
     )
 
-    print("Start treningu!")
+    # --- 4. SILNIK TRENINGOWY (TRAINER) ---
+    print("[4/4] Start Treningu!\n")
     trainer = pl.Trainer(
-        max_epochs=100, # Zwiększamy do 100!
+        max_epochs=MAX_EPOCHS,
         accelerator='auto',
-        log_every_n_steps=10, # Możesz zmienić na 10 przy dużym zbiorze, żeby nie spamić logami
+        log_every_n_steps=10,
         check_val_every_n_epoch=1,
-        callbacks=[checkpoint_callback, early_stop_callback] # <--- PODPINAMY GADŻETY
+        callbacks=[checkpoint_callback, early_stop_callback]
     )
 
+    # Odpalenie maszyny
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
 
