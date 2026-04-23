@@ -15,10 +15,10 @@ torch.set_float32_matmul_precision('medium')
 DATA_IMAGES = '..\\dataset\\images'
 DATA_LABELS = '..\\dataset\\labels_model_b'
 
-BATCH_SIZE = 20       # Uwaga: zmniejsz do 16, jeśli wywali błąd CUDA out of memory
-NUM_WORKERS = 4       # Uwaga: zmniejsz do 2, jeśli wywali błąd openBLAS (brak RAM)
-MAX_EPOCHS = 100      # Maksymalna liczba epok treningu
-PATIENCE = 10         # Early Stopping: po ilu epokach bez poprawy przerwać
+BATCH_SIZE = 32
+NUM_WORKERS = 4 
+MAX_EPOCHS = 500 
+PATIENCE = 10 
 # =====================================================================
 
 def main():
@@ -40,7 +40,8 @@ def main():
         shuffle=True,
         collate_fn=collate_fn_ctc,
         num_workers=NUM_WORKERS,
-        persistent_workers=True
+        persistent_workers=True,
+        pin_memory=True
     )
 
     val_loader = DataLoader(

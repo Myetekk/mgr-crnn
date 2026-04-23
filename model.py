@@ -116,7 +116,7 @@ class TabulatureLightningModel(pl.LightningModule):
             self.print(f"\nEpoch {self.current_epoch} - WALIDACJA")
             self.print(f"Target: {target_strings[0]}")
             self.print(f"Model:  {predicted_strings[0]}")
-            self.print(f"Błąd CER: {sample_cer * 100:.1f}%")
+            # self.print(f"Błąd CER: {sample_cer * 100:.1f}%")
 
         return loss
 
