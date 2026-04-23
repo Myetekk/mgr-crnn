@@ -5,13 +5,16 @@ from torchmetrics.functional.text import char_error_rate
 from torchmetrics.text import CharErrorRate
 
 
+
+
+
 class TabulatureLightningModel(pl.LightningModule):
     def __init__(self, num_classes=29, hidden_size=256, learning_rate=1e-4):
         super().__init__()
         self.save_hyperparameters()
 
         # Architektura CNN + RNN
-        self.cnn = nn.Sequential(
+        self.cnn = nn.Sequential(  # warstwy konwolucyjne i łączące - oczy
             nn.Conv2d(3, 64, kernel_size=3, padding=1), nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(64, 128, kernel_size=3, padding=1), nn.ReLU(),
@@ -21,17 +24,18 @@ class TabulatureLightningModel(pl.LightningModule):
             nn.Conv2d(256, 256, kernel_size=3, padding=1), nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2, 1))
         )
-        self.pool = nn.AdaptiveAvgPool2d((1, None))
-        self.rnn = nn.LSTM(input_size=256, hidden_size=hidden_size, bidirectional=True, batch_first=True)
-        self.fc = nn.Linear(hidden_size * 2, num_classes)
-        self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=True)
+        self.pool = nn.AdaptiveAvgPool2d((1, None))  # spłaszczacz
+        self.rnn = nn.LSTM(input_size=256, hidden_size=hidden_size, bidirectional=True, batch_first=True)  # LongShortTermMemory - oczy z kontekstem
+        self.fc = nn.Linear(hidden_size * 2, num_classes)  # zgadywanie co widzi
+        self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=True)  # ConnectionistTemporalClassification - nauczyciel
 
-        # INICJALIZACJA METRYKI CER
         self.val_cer = CharErrorRate()
+
+
 
     def decode_prediction(self, pred_indices):
         """ Zamienia listę ID (tokenów) na czytelny tekst string """
-        # 1. Redukcja CTC (usuwanie powtórzeń i blanków '0')
+        # redukcja CTC (usuwanie powtórzeń i blanków '0')
         decoded_tokens = []
         previous_token = -1
         for token in pred_indices:
@@ -39,7 +43,7 @@ class TabulatureLightningModel(pl.LightningModule):
                 decoded_tokens.append(token)
             previous_token = token
 
-        # 2. Mapowanie na znaki
+        # mapowanie na znaki
         text = ""
         for t in decoded_tokens:
             if t == 26:
@@ -52,12 +56,16 @@ class TabulatureLightningModel(pl.LightningModule):
                 text += str(int(t) - 1)
         return text
 
+
+
     def forward(self, x):
         x = self.cnn(x)
         x = self.pool(x)
         x = x.squeeze(2).permute(0, 2, 1)
         x, _ = self.rnn(x)
         return self.fc(x)
+
+
 
     def training_step(self, batch, batch_idx):
         images, targets, target_lengths = batch
@@ -70,6 +78,8 @@ class TabulatureLightningModel(pl.LightningModule):
         loss = self.loss_fn(preds_log_softmax, targets, input_lengths, target_lengths)
         self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=batch_size)
         return loss
+
+
 
     def validation_step(self, batch, batch_idx):
         images, targets, target_lengths = batch
@@ -116,9 +126,10 @@ class TabulatureLightningModel(pl.LightningModule):
             self.print(f"\nEpoch {self.current_epoch} - WALIDACJA")
             self.print(f"Target: {target_strings[0]}")
             self.print(f"Model:  {predicted_strings[0]}")
-            # self.print(f"Błąd CER: {sample_cer * 100:.1f}%")
 
         return loss
+
+
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)

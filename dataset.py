@@ -16,38 +16,41 @@ class TabulatureDataset(Dataset):
         self.label_dir = label_dir
         self.image_files = sorted(os.listdir(image_dir))
 
-        # Transformacje: zmieniamy obrazek na Tensor (macierz) i normalizujemy kolory
+        # zmieniamy obrazek na Tensor (macierz) i normalizujemy kolory
         self.transform = transforms.Compose([
-            transforms.Resize((64, 1024)),  # <--- POSZERZAMY OBRAZ!
+            transforms.Resize((64, 1024)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
+
+
 
     def __len__(self):
         """ Zwraca ile łącznie mamy obrazków """
         return len(self.image_files)
 
+
+
     def tokenize(self, text):
         tokens = []
 
-        # re.findall to potężne narzędzie. Mówi: "Znajdź mi ciągi cyfr (\d+) LUB
-        # dwukropek (:) LUB kreskę (\|) LUB przecinek (,). Zignoruj wszystko inne (np. spacje)".
         parts = re.findall(r'\d+|:|\||,', text)
 
         for part in parts:
             if part == ':':
-                tokens.append(26)  # Zmienione ID (zostawiamy miejsce na progi)
+                tokens.append(26)
             elif part == ',':
                 tokens.append(27)
             elif part == '|':
-                tokens.append(28)  # Nasz nowy separator
+                tokens.append(28)
             else:
-                # part to liczba. Dodajemy +1, aby ominąć token 0 [BLANK]
-                # Próg 0 = klasa 1. Struna 6 = klasa 7. Próg 24 = klasa 25.
+                # +1 żeby ominąć token 0 [BLANK]
                 number = int(part)
                 tokens.append(number + 1)
 
         return tokens
+
+
 
     def __getitem__(self, idx):
         """ Pobiera JEDEN konkretny obrazek i jego etykietę z dysku """
@@ -72,13 +75,8 @@ class TabulatureDataset(Dataset):
 
 
 
-# ---------------------------------------------------------
-# UWAGA: To jest kluczowa funkcja (HACZYK dla CTC Loss).
-# Skleja nam wiele obrazków w jeden "Batch" (paczkę).
-# ---------------------------------------------------------
 def collate_fn_ctc(batch):
     images, targets = zip(*batch)
-
     # Obrazki pakujemy w jeden wielki tensor: [Rozmiar_Paczki, Kanały, Wys, Szer]
     images = torch.stack(images, 0)
 
