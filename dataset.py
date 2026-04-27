@@ -10,11 +10,15 @@ import re
 
 
 class TabulatureDataset(Dataset):
-    def __init__(self, image_dir, label_dir):
-        """ Inicjalizacja: podajemy ścieżki do folderów z danymi """
-        self.image_dir = image_dir
-        self.label_dir = label_dir
-        self.image_files = sorted(os.listdir(image_dir))
+    def __init__(self, data_dir):
+        """ Inicjalizacja: podajemy tylko jeden folder, w którym są i obrazki i etykiety """
+        self.data_dir = data_dir
+
+        # Pobieramy TYLKO pliki graficzne, żeby nie próbować wczytać plików .txt jako obrazów!
+        self.image_files = sorted([
+            f for f in os.listdir(data_dir)
+            if f.lower().endswith(('.png', '.jpg', '.jpeg'))
+        ])
 
         # zmieniamy obrazek na Tensor (macierz) i normalizujemy kolory
         self.transform = transforms.Compose([
@@ -33,7 +37,6 @@ class TabulatureDataset(Dataset):
 
     def tokenize(self, text):
         tokens = []
-
         parts = re.findall(r'\d+|:|\||,', text)
 
         for part in parts:
@@ -55,14 +58,17 @@ class TabulatureDataset(Dataset):
     def __getitem__(self, idx):
         """ Pobiera JEDEN konkretny obrazek i jego etykietę z dysku """
         img_name = self.image_files[idx]
-        img_path = os.path.join(self.image_dir, img_name)
+        img_path = os.path.join(self.data_dir, img_name)
 
         # Otwieramy obrazek i zmieniamy go na format zgodny z siecią (RGB)
         image = Image.open(img_path).convert('RGB')
         image = self.transform(image)
 
-        # Szukamy odpowiadającego pliku txt.
-        label_path = os.path.join(self.label_dir, img_name.replace('.png', '.txt'))
+        # Szukamy odpowiadającego pliku txt w tym samym folderze.
+        # Bezpiecznie odcinamy rozszerzenie obrazka i dodajemy .txt
+        base_name = os.path.splitext(img_name)[0]
+        label_path = os.path.join(self.data_dir, f"{base_name}_b.txt")
+
         with open(label_path, 'r') as f:
             text_label = f.read().strip()
 

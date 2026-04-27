@@ -12,8 +12,7 @@ from datetime import datetime
 
 torch.set_float32_matmul_precision('medium')
 
-DATA_IMAGES = '..\\dataset\\images'
-DATA_LABELS = '..\\dataset\\labels_model_b'
+DATA_DIR = '..\\dataset'
 
 BATCH_SIZE = 20
 NUM_WORKERS = 4 
@@ -26,7 +25,8 @@ PATIENCE = 10
 
 def main():
     print("\n[1/4] Inicjalizacja i podział Datasetu...")
-    full_dataset = TabulatureDataset(image_dir=DATA_IMAGES, label_dir=DATA_LABELS)
+    # Podajemy tylko zunifikowany DATA_DIR
+    full_dataset = TabulatureDataset(data_dir=DATA_DIR)
 
     # podział na dane treningowe i walidacyjne
     train_size = int(0.8 * len(full_dataset))
