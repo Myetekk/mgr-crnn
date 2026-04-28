@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 from PIL import Image
+import torchvision.transforms.functional as TF
 import os
 import re
 
@@ -22,7 +23,7 @@ class TabulatureDataset(Dataset):
 
         # zmieniamy obrazek na Tensor (macierz) i normalizujemy kolory
         self.transform = transforms.Compose([
-            transforms.Resize((64, 1024)),
+            ResizeAndPad(64, 1024),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
@@ -76,6 +77,32 @@ class TabulatureDataset(Dataset):
         tokens = self.tokenize(text_label)
 
         return image, torch.tensor(tokens, dtype=torch.long)
+
+
+
+
+
+class ResizeAndPad:
+    def __init__(self, target_h=64, target_w=1024):
+        self.target_h = target_h
+        self.target_w = target_w
+
+    def __call__(self, img):
+        # 1. Zmiana wysokości na 64 z zachowaniem proporcji (AspectRatio)
+        w, h = img.size
+        new_w = int(w * (self.target_h / h))
+        img = img.resize((new_w, self.target_h), Image.Resampling.BILINEAR)
+
+        # 2. Pad (dodawanie tła) lub Crop (ucinanie) do 1024
+        if new_w < self.target_w:
+            # Dodajemy białe tło (255, 255, 255) z prawej strony
+            padding = (0, 0, self.target_w - new_w, 0)  # left, top, right, bottom
+            img = TF.pad(img, padding, fill=(255, 255, 255))
+        elif new_w > self.target_w:
+            # Jeśli tabulatura jest za długa, brutalnie tniemy do 1024
+            img = img.crop((0, 0, self.target_w, self.target_h))
+
+        return img
 
 
 

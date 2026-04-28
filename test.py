@@ -5,6 +5,7 @@ from datetime import datetime
 from torchvision import transforms
 from model import TabulatureLightningModel
 from torchmetrics.functional.text import char_error_rate
+from dataset import ResizeAndPad
 
 
 
@@ -47,7 +48,7 @@ def test_model():
         return
 
     transform = transforms.Compose([
-        transforms.Resize((64, 1024)),
+        ResizeAndPad(64, 1024),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
