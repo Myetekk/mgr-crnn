@@ -1,7 +1,7 @@
 import os
 from PIL import Image
 
-DATA_DIR = '..\\dataset'  # Upewnij się, że ścieżka jest poprawna
+DATA_DIR = '..\\dataset'
 
 
 def clean_dataset():

@@ -11,7 +11,7 @@ from dataset import ResizeAndPad
 
 
 
-CHECKPOINT_PATH = 'saved_models/best_model_2026-04-22_15-37.ckpt'
+CHECKPOINT_PATH = 'saved_models/best_model_2026-05-01_01-48.ckpt'
 
 DATA_DIR = '..\\testset'
 RESULTS_DIR = '..\\results'
@@ -79,8 +79,7 @@ def test_model():
             _, max_indices = torch.max(preds, dim=2)
             decoded_text = model.decode_prediction(max_indices[0].cpu().numpy())
 
-            # --- ZOSTAWIONE ZGODNIE Z PROŚBĄ ---
-            decoded_text = decoded_text.replace('|', ' | ')
+            true_text = true_text.replace(' | ', '|')
 
             # --- MATEMATYKA: Obliczanie skuteczności (CAR) i znaków ---
             if true_text != "Brak pliku etykiety":
@@ -102,6 +101,8 @@ def test_model():
                 exact_matches += 1
 
             # --- KONSOLA ---
+            # true_text = true_text.replace('|', ' | ')
+            # decoded_text = decoded_text.replace('|', ' | ')
             print(f"[{img_name}]")
             print(f"Prawda: {true_text}")
             print(f"Model:  {decoded_text}")

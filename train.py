@@ -5,6 +5,8 @@ from torch.utils.data import DataLoader, random_split
 from dataset import TabulatureDataset, collate_fn_ctc
 from model import TabulatureLightningModel
 from datetime import datetime
+import os
+import glob
 
 
 
@@ -13,10 +15,11 @@ from datetime import datetime
 torch.set_float32_matmul_precision('medium')
 
 DATA_DIR = '..\\dataset'
+CHECKPOINT_DIR = 'saved_models'
 
 BATCH_SIZE = 20
-NUM_WORKERS = 4 
-MAX_EPOCHS = 500 
+NUM_WORKERS = 4
+MAX_EPOCHS = 500
 PATIENCE = 10
 
 
@@ -25,17 +28,14 @@ PATIENCE = 10
 
 def main():
     print("\n[1/4] Inicjalizacja i podział Datasetu...")
-    # Podajemy tylko zunifikowany DATA_DIR
     full_dataset = TabulatureDataset(data_dir=DATA_DIR)
 
-    # podział na dane treningowe i walidacyjne
     train_size = int(0.8 * len(full_dataset))
     val_size = len(full_dataset) - train_size
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
     print(f" -> Trening: {train_size} próbek | Walidacja: {val_size} próbek")
 
-    # dataloadery
     print("[2/4] Konfiguracja Dataloaderów...")
     train_loader = DataLoader(
         train_dataset,
@@ -56,19 +56,17 @@ def main():
         persistent_workers=True
     )
 
-    # model
     print("[3/4] Inicjalizacja Modelu i Narzędzi...")
     model = TabulatureLightningModel(num_classes=29)
-    start_time = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
-    # callbacki
     checkpoint_callback = ModelCheckpoint(
-        dirpath='saved_models',
-        filename=f'best_model_{start_time}',
+        dirpath=CHECKPOINT_DIR,
+        filename='best_model',
         save_top_k=1,
         monitor='val_cer',
         mode='min'
     )
+
     early_stop_callback = EarlyStopping(
         monitor='val_cer',
         patience=PATIENCE,
@@ -76,7 +74,6 @@ def main():
         mode='min'
     )
 
-    # trainer
     print("[4/4] Start Treningu!\n")
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
@@ -86,8 +83,54 @@ def main():
         callbacks=[checkpoint_callback, early_stop_callback]
     )
 
-    # odpalenie maszyny
-    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    latest_ckpt = find_latest_checkpoint(CHECKPOINT_DIR)
+
+    try:
+        # Odpalenie maszyny
+        if latest_ckpt:
+            print(f"\n[5/5] Znaleziono punkt kontrolny: {latest_ckpt}")
+            print("      Wznawiam trening od miejsca przerwania...\n")
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=latest_ckpt)
+        else:
+            print(f"\n[5/5] Brak punktów kontrolnych w '{CHECKPOINT_DIR}'.")
+            print("      Start Treningu od zera!\n")
+            trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+
+        # Zmiana nazwy TYLKO po pełnym, naturalnym zakończeniu treningu (EarlyStopping lub Max Epochs)
+        best_model_path = os.path.join(CHECKPOINT_DIR, "best_model.ckpt")
+        if os.path.exists(best_model_path):
+            end_time = datetime.now().strftime("%Y-%m-%d_%H-%M")
+            new_model_name = f"best_model_{end_time}.ckpt"
+            new_model_path = os.path.join(CHECKPOINT_DIR, new_model_name)
+            os.rename(best_model_path, new_model_path)
+            print(f"\n[ZAKOŃCZONO SUKCESEM] Trening dobiegł końca!")
+            print(f"Model został zarchiwizowany jako: {new_model_name}\n")
+
+    except KeyboardInterrupt:
+        # Jeśli przerwiesz trening w konsoli za pomocą Ctrl+C
+        print("\n\n[PRZERWANO] Trening zatrzymany ręcznie przez użytkownika.")
+        print("Plik 'best_model.ckpt' czeka w folderze na wznowienie treningu.\n")
+
+
+
+
+
+def find_latest_checkpoint(ckpt_dir):
+    """
+    Szuka aktywnego pliku 'best_model.ckpt' czekającego na wznowienie.
+    """
+    if not os.path.exists(ckpt_dir):
+        return None
+
+    list_of_files = glob.glob(f'{ckpt_dir}/best_model.ckpt')
+    if not list_of_files:
+        return None
+
+    latest_file = max(list_of_files, key=os.path.getctime)
+    return latest_file
+
+
+
 
 
 if __name__ == '__main__':
