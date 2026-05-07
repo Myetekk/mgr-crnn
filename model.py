@@ -47,7 +47,14 @@ class TabulatureLightningModel(pl.LightningModule):
         )
 
         self.pool = nn.AdaptiveAvgPool2d((1, None))  # spłaszczacz
-        self.rnn = nn.LSTM(input_size=512, hidden_size=hidden_size, bidirectional=True, batch_first=True)  # LongShortTermMemory - oczy z kontekstem
+        self.rnn = nn.LSTM(
+            input_size=512,
+            hidden_size=hidden_size,
+            num_layers=2,
+            dropout=0.2,
+            bidirectional=True,
+            batch_first=True
+        )  # LongShortTermMemory - oczy z kontekstem
         self.dropout = nn.Dropout(p=0.3)
         self.fc = nn.Linear(hidden_size * 2, num_classes)  # zgadywanie co widzi
         self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=True)  # ConnectionistTemporalClassification - nauczyciel
