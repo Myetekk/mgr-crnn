@@ -15,38 +15,40 @@ class TabulatureLightningModel(pl.LightningModule):
 
         # Głęboka Architektura CNN (inspirowana VGG) z Batch Normalization
         self.cnn = nn.Sequential(
-            # Blok 1 (wejście: 64x1024)
+            # Blok 1
             nn.Conv2d(3, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64), nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),  # wyjście: 32x512
+            nn.MaxPool2d(kernel_size=2, stride=2),
 
             # Blok 2
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128), nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),  # wyjście: 16x256
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Dropout2d(p=0.1),  # Delikatny dropout wczesnych cech
 
             # Blok 3
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256), nn.ReLU(),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256), nn.ReLU(),
-            # Zauważ: stride=(2,1) skraca tylko wysokość, zostawia szerokość (256 time steps)
-            nn.MaxPool2d(kernel_size=(2, 1)),  # wyjście: 8x256
+            nn.MaxPool2d(kernel_size=(2, 1)),
 
             # Blok 4
             nn.Conv2d(256, 512, kernel_size=3, padding=1),
             nn.BatchNorm2d(512), nn.ReLU(),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
             nn.BatchNorm2d(512), nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 1)),  # wyjście: 4x256
+            nn.MaxPool2d(kernel_size=(2, 1)),
+            nn.Dropout2d(p=0.2),  # Mocniejszy dropout przed końcem CNN
 
             # Blok 5
             nn.Conv2d(512, 512, kernel_size=2, padding=0),
-            nn.BatchNorm2d(512), nn.ReLU()  # wyjście: 3x255
+            nn.BatchNorm2d(512), nn.ReLU()
         )
 
         self.pool = nn.AdaptiveAvgPool2d((1, None))  # spłaszczacz
         self.rnn = nn.LSTM(input_size=512, hidden_size=hidden_size, bidirectional=True, batch_first=True)  # LongShortTermMemory - oczy z kontekstem
+        self.dropout = nn.Dropout(p=0.3)
         self.fc = nn.Linear(hidden_size * 2, num_classes)  # zgadywanie co widzi
         self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=True)  # ConnectionistTemporalClassification - nauczyciel
 
@@ -55,8 +57,6 @@ class TabulatureLightningModel(pl.LightningModule):
 
 
     def decode_prediction(self, pred_indices):
-        """ Zamienia listę ID (tokenów) na czytelny tekst string """
-        # redukcja CTC (usuwanie powtórzeń i blanków '0')
         decoded_tokens = []
         previous_token = -1
         for token in pred_indices:
@@ -64,17 +64,12 @@ class TabulatureLightningModel(pl.LightningModule):
                 decoded_tokens.append(token)
             previous_token = token
 
-        # mapowanie na znaki
         text = ""
         for t in decoded_tokens:
-            if t == 26:
-                text += ":"
-            elif t == 27:
-                text += ","
-            elif t == 28:
-                text += "|"
-            else:
-                text += str(int(t) - 1)
+            if t == 26: text += ":"
+            elif t == 27: text += ","
+            elif t == 28: text += "|"
+            else: text += str(int(t) - 1)
         return text
 
 
@@ -82,8 +77,9 @@ class TabulatureLightningModel(pl.LightningModule):
     def forward(self, x):
         x = self.cnn(x)
         x = self.pool(x)
-        x = x.squeeze(2).permute(0, 2, 1)  # Przygotowanie pod (Batch, Sequence_length, Features)
+        x = x.squeeze(2).permute(0, 2, 1)
         x, _ = self.rnn(x)
+        x = self.dropout(x)
         return self.fc(x)
 
 
@@ -133,8 +129,21 @@ class TabulatureLightningModel(pl.LightningModule):
 
         return loss
 
-
-
     def configure_optimizers(self):
-        # Dodałem Weight Decay, żeby zapobiec overfittingowi w głębszej sieci
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate, weight_decay=1e-5)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.learning_rate, weight_decay=1e-4)
+
+        # Zmniejszy Learning Rate o połowę, gdy walidacja (val_cer) nie poprawi się przez 4 epoki.
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.5,
+            patience=4,
+            verbose=True
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "monitor": "val_cer",  # Obserwujemy CER
+            },
+        }

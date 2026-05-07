@@ -27,7 +27,7 @@ PATIENCE = 10
 
 
 def main():
-    print("\n[1/4] Inicjalizacja i podział Datasetu...")
+    print("\n[1/5] Inicjalizacja i podział Datasetu...")
     full_dataset = TabulatureDataset(data_dir=DATA_DIR)
 
     train_size = int(0.8 * len(full_dataset))
@@ -36,7 +36,7 @@ def main():
 
     print(f" -> Trening: {train_size} próbek | Walidacja: {val_size} próbek")
 
-    print("[2/4] Konfiguracja Dataloaderów...")
+    print("[2/5] Konfiguracja Dataloaderów...")
     train_loader = DataLoader(
         train_dataset,
         batch_size=BATCH_SIZE,
@@ -56,7 +56,7 @@ def main():
         persistent_workers=True
     )
 
-    print("[3/4] Inicjalizacja Modelu i Narzędzi...")
+    print("[3/5] Inicjalizacja Modelu i Narzędzi...")
     model = TabulatureLightningModel(num_classes=29)
 
     checkpoint_callback = ModelCheckpoint(
@@ -74,7 +74,7 @@ def main():
         mode='min'
     )
 
-    print("[4/4] Start Treningu!\n")
+    print("[4/5] Start Treningu!\n")
     trainer = pl.Trainer(
         max_epochs=MAX_EPOCHS,
         accelerator='auto',
