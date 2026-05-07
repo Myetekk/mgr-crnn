@@ -136,21 +136,23 @@ class TabulatureLightningModel(pl.LightningModule):
 
         return loss
 
+
+
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.learning_rate, weight_decay=1e-4)
 
-        # Zmniejszy Learning Rate o połowę, gdy walidacja (val_cer) nie poprawi się przez 4 epoki.
+        # Zmniejszy Learning Rate o połowę, gdy walidacja (val_cer) nie poprawi się przez 8 epok
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',
             factor=0.5,
-            patience=4,
+            patience=8,
             verbose=True
         )
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
-                "monitor": "val_cer",  # Obserwujemy CER
+                "monitor": "val_cer",
             },
         }

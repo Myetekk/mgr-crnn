@@ -10,7 +10,7 @@ from torchmetrics.functional.text import char_error_rate
 
 
 
-CHECKPOINT_PATH = 'saved_models/best_model_2026-05-02_15-55.ckpt'
+CHECKPOINT_PATH = 'saved_models/best_model_2026-05-07_16-31.ckpt'
 
 DATA_DIR = '..\\testset'
 RESULTS_DIR = '..\\results'
