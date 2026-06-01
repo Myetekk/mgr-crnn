@@ -61,8 +61,6 @@ class TabulatureLightningModel(pl.LightningModule):
 
         self.val_cer = CharErrorRate()
 
-
-
     def decode_prediction(self, pred_indices):
         decoded_tokens = []
         previous_token = -1
@@ -72,11 +70,26 @@ class TabulatureLightningModel(pl.LightningModule):
             previous_token = token
 
         text = ""
+        is_fret = True
+
         for t in decoded_tokens:
-            if t == 26: text += ":"
-            elif t == 27: text += ","
-            elif t == 28: text += "|"
-            else: text += str(int(t) - 1)
+            if t == 26:
+                text += ":"
+                is_fret = False
+            elif t == 27:
+                text += " + "
+                is_fret = True
+            elif t == 28:
+                text += " "
+                is_fret = True
+            else:
+                num_str = str(int(t) - 1)
+
+                if is_fret:
+                    text += f"digit.{num_str}"
+                else:
+                    text += num_str
+
         return text
 
 

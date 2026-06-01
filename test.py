@@ -10,7 +10,7 @@ from torchmetrics.functional.text import char_error_rate
 
 
 
-CHECKPOINT_PATH = 'saved_models/best_model_2026-05-07_16-31.ckpt'
+CHECKPOINT_PATH = 'saved_models/best_model_2026_05_10_21_19.ckpt'
 
 DATA_DIR = '..\\testset'
 RESULTS_DIR = '..\\results'
@@ -79,6 +79,7 @@ def test_model():
             decoded_text = model.decode_prediction(max_indices[0].cpu().numpy())
 
             true_text = true_text.replace(' | ', '|')
+            true_text = true_text.replace(', ', ',')
 
             if true_text != "Brak pliku etykiety":
                 cer = char_error_rate(decoded_text, true_text).item()

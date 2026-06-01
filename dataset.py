@@ -34,21 +34,20 @@ class TabulatureDataset(Dataset):
         """ Zwraca ile łącznie mamy obrazków """
         return len(self.image_files)
 
-
-
     def tokenize(self, text):
         tokens = []
-        parts = re.findall(r'\d+|:|\||,', text)
+        text = text.replace('digit.', '')
+        text = text.replace(' + ', '+')
+        parts = re.findall(r'\d+|:|\+| ', text)
 
         for part in parts:
             if part == ':':
                 tokens.append(26)
-            elif part == ',':
+            elif part == '+':
                 tokens.append(27)
-            elif part == '|':
+            elif part == ' ':
                 tokens.append(28)
             else:
-                # +1 żeby ominąć token 0 [BLANK]
                 number = int(part)
                 tokens.append(number + 1)
 

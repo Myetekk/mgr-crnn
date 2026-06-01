@@ -57,11 +57,11 @@ def main():
     )
 
     print("[3/5] Inicjalizacja Modelu i Narzędzi...")
-    model = TabulatureLightningModel(num_classes=29)
+    model = TabulatureLightningModel(num_classes=28)
 
     checkpoint_callback = ModelCheckpoint(
         dirpath=CHECKPOINT_DIR,
-        filename='best_model',
+        filename='model_checkpoint',
         save_top_k=1,
         monitor='val_cer',
         mode='min'
@@ -97,19 +97,19 @@ def main():
             trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
         # Zmiana nazwy TYLKO po pełnym, naturalnym zakończeniu treningu (EarlyStopping lub Max Epochs)
-        best_model_path = os.path.join(CHECKPOINT_DIR, "best_model.ckpt")
-        if os.path.exists(best_model_path):
+        model_path = os.path.join(CHECKPOINT_DIR, "model_checkpoint.ckpt")
+        if os.path.exists(model_path):
             end_time = datetime.now().strftime("%Y-%m-%d_%H-%M")
-            new_model_name = f"best_model_{end_time}.ckpt"
+            new_model_name = f"model_{end_time}.ckpt"
             new_model_path = os.path.join(CHECKPOINT_DIR, new_model_name)
-            os.rename(best_model_path, new_model_path)
+            os.rename(model_path, new_model_path)
             print(f"\n[ZAKOŃCZONO SUKCESEM] Trening dobiegł końca!")
             print(f"Model został zarchiwizowany jako: {new_model_name}\n")
 
     except KeyboardInterrupt:
         # Jeśli przerwiesz trening w konsoli za pomocą Ctrl+C
         print("\n\n[PRZERWANO] Trening zatrzymany ręcznie przez użytkownika.")
-        print("Plik 'best_model.ckpt' czeka w folderze na wznowienie treningu.\n")
+        print("Plik 'model_checkpoint.ckpt' czeka w folderze na wznowienie treningu.\n")
 
 
 
@@ -117,12 +117,12 @@ def main():
 
 def find_latest_checkpoint(ckpt_dir):
     """
-    Szuka aktywnego pliku 'best_model.ckpt' czekającego na wznowienie.
+    Szuka aktywnego pliku 'model_checkpoint.ckpt' czekającego na wznowienie.
     """
     if not os.path.exists(ckpt_dir):
         return None
 
-    list_of_files = glob.glob(f'{ckpt_dir}/best_model.ckpt')
+    list_of_files = glob.glob(f'{ckpt_dir}/model_checkpoint.ckpt')
     if not list_of_files:
         return None
 
