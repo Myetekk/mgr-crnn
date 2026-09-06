@@ -9,44 +9,48 @@ from torchmetrics.text import CharErrorRate
 
 
 class TabulatureLightningModel(pl.LightningModule):
-    def __init__(self, num_classes=29, hidden_size=256, learning_rate=1e-4):
+    def __init__(self, num_classes=36, hidden_size=256, learning_rate=1e-4):
         super().__init__()
         self.save_hyperparameters()
 
-        # Głęboka Architektura CNN (inspirowana VGG) z Batch Normalization
+        self.idx_to_vocab = {}
+        for i in range(25):
+            self.idx_to_vocab[i + 1] = f"digit.{i}"
+        self.idx_to_vocab[26] = "digit.X"
+        self.idx_to_vocab[27] = ':'
+        self.idx_to_vocab[28] = ' + '
+        self.idx_to_vocab[29] = ' '
+        for i in range(1, 7):
+            self.idx_to_vocab[29 + i] = str(i)
+
         self.cnn = nn.Sequential(
-            # Blok 1
             nn.Conv2d(3, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64), nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.MaxPool2d(kernel_size=(2, 1)),
 
-            # Blok 2
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128), nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Dropout2d(p=0.1),  # Delikatny dropout wczesnych cech
+            nn.MaxPool2d(kernel_size=(2, 1)),
+            nn.Dropout2d(p=0.1),
 
-            # Blok 3
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256), nn.ReLU(),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256), nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2, 1)),
 
-            # Blok 4
             nn.Conv2d(256, 512, kernel_size=3, padding=1),
             nn.BatchNorm2d(512), nn.ReLU(),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
             nn.BatchNorm2d(512), nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2, 1)),
-            nn.Dropout2d(p=0.2),  # Mocniejszy dropout przed końcem CNN
+            nn.Dropout2d(p=0.2),
 
-            # Blok 5
             nn.Conv2d(512, 512, kernel_size=2, padding=0),
             nn.BatchNorm2d(512), nn.ReLU()
         )
 
-        self.pool = nn.AdaptiveAvgPool2d((1, None))  # spłaszczacz
+        self.pool = nn.AdaptiveAvgPool2d((1, None))
         self.rnn = nn.LSTM(
             input_size=512,
             hidden_size=hidden_size,
@@ -54,12 +58,13 @@ class TabulatureLightningModel(pl.LightningModule):
             dropout=0.2,
             bidirectional=True,
             batch_first=True
-        )  # LongShortTermMemory - oczy z kontekstem
+        )
         self.dropout = nn.Dropout(p=0.3)
-        self.fc = nn.Linear(hidden_size * 2, num_classes)  # zgadywanie co widzi
-        self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=True)  # ConnectionistTemporalClassification - nauczyciel
-
+        self.fc = nn.Linear(hidden_size * 2, num_classes)
+        self.loss_fn = nn.CTCLoss(blank=0, zero_infinity=True)
         self.val_cer = CharErrorRate()
+
+
 
     def decode_prediction(self, pred_indices):
         decoded_tokens = []
@@ -69,27 +74,7 @@ class TabulatureLightningModel(pl.LightningModule):
                 decoded_tokens.append(token)
             previous_token = token
 
-        text = ""
-        is_fret = True
-
-        for t in decoded_tokens:
-            if t == 26:
-                text += ":"
-                is_fret = False
-            elif t == 27:
-                text += " + "
-                is_fret = True
-            elif t == 28:
-                text += " "
-                is_fret = True
-            else:
-                num_str = str(int(t) - 1)
-
-                if is_fret:
-                    text += f"digit.{num_str}"
-                else:
-                    text += num_str
-
+        text = "".join([self.idx_to_vocab[t] for t in decoded_tokens if t in self.idx_to_vocab])
         return text
 
 
@@ -153,8 +138,6 @@ class TabulatureLightningModel(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.learning_rate, weight_decay=1e-4)
-
-        # Zmniejszy Learning Rate o połowę, gdy walidacja (val_cer) nie poprawi się przez 8 epok
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',

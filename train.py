@@ -14,7 +14,11 @@ import glob
 
 torch.set_float32_matmul_precision('medium')
 
-DATA_DIR = '..\\dataset'
+MODEL_VERSION = 'weak'
+DATA_DIR = f"..\\train_dataset_{MODEL_VERSION}"
+
+CHECKPOINT_BASENAME = f"model_checkpoint_{MODEL_VERSION}"
+CHECKPOINT_NAME = f"{CHECKPOINT_BASENAME}.ckpt"
 CHECKPOINT_DIR = 'saved_models'
 
 BATCH_SIZE = 20
@@ -57,11 +61,11 @@ def main():
     )
 
     print("[3/5] Inicjalizacja Modelu i Narzędzi...")
-    model = TabulatureLightningModel(num_classes=28)
+    model = TabulatureLightningModel(num_classes=36)
 
     checkpoint_callback = ModelCheckpoint(
         dirpath=CHECKPOINT_DIR,
-        filename='model_checkpoint',
+        filename=CHECKPOINT_BASENAME,
         save_top_k=1,
         monitor='val_cer',
         mode='min'
@@ -84,9 +88,7 @@ def main():
     )
 
     latest_ckpt = find_latest_checkpoint(CHECKPOINT_DIR)
-
     try:
-        # Odpalenie maszyny
         if latest_ckpt:
             print(f"\n[5/5] Znaleziono punkt kontrolny: {latest_ckpt}")
             print("      Wznawiam trening od miejsca przerwania...\n")
@@ -96,40 +98,31 @@ def main():
             print("      Start Treningu od zera!\n")
             trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
-        # Zmiana nazwy TYLKO po pełnym, naturalnym zakończeniu treningu (EarlyStopping lub Max Epochs)
-        model_path = os.path.join(CHECKPOINT_DIR, "model_checkpoint.ckpt")
-        if os.path.exists(model_path):
+        # model_path = os.path.join(CHECKPOINT_DIR, CHECKPOINT_NAME)
+        best_model_path = checkpoint_callback.best_model_path
+        if best_model_path and os.path.exists(best_model_path):
             end_time = datetime.now().strftime("%Y-%m-%d_%H-%M")
-            new_model_name = f"model_{end_time}.ckpt"
+            new_model_name = f"model_{end_time}_{MODEL_VERSION}.ckpt"
             new_model_path = os.path.join(CHECKPOINT_DIR, new_model_name)
-            os.rename(model_path, new_model_path)
+
+            os.rename(best_model_path, new_model_path)
             print(f"\n[ZAKOŃCZONO SUKCESEM] Trening dobiegł końca!")
             print(f"Model został zarchiwizowany jako: {new_model_name}\n")
 
     except KeyboardInterrupt:
-        # Jeśli przerwiesz trening w konsoli za pomocą Ctrl+C
         print("\n\n[PRZERWANO] Trening zatrzymany ręcznie przez użytkownika.")
-        print("Plik 'model_checkpoint.ckpt' czeka w folderze na wznowienie treningu.\n")
-
-
+        print(f"Plik '{CHECKPOINT_NAME}' czeka w folderze na wznowienie treningu.\n")
 
 
 
 def find_latest_checkpoint(ckpt_dir):
-    """
-    Szuka aktywnego pliku 'model_checkpoint.ckpt' czekającego na wznowienie.
-    """
     if not os.path.exists(ckpt_dir):
         return None
-
-    list_of_files = glob.glob(f'{ckpt_dir}/model_checkpoint.ckpt')
+    list_of_files = glob.glob(f'{ckpt_dir}/{CHECKPOINT_NAME}')
     if not list_of_files:
         return None
-
     latest_file = max(list_of_files, key=os.path.getctime)
     return latest_file
-
-
 
 
 
