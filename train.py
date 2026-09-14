@@ -14,10 +14,18 @@ import glob
 
 torch.set_float32_matmul_precision('medium')
 
-MODEL_VERSION = 'weak'
-DATA_DIR = f"..\\train_dataset_{MODEL_VERSION}"
+# MODEL_VERSION = 'noiseH'
+# MODEL_VERSION = 'noiseM'
+# MODEL_VERSION = 'noiseL'
+MODEL_VERSION = 'addH'
+# MODEL_VERSION = 'addM'
+# MODEL_VERSION = 'addL'
+# MODEL_VERSION = 'timeH'
+# MODEL_VERSION = 'timeM'
+# MODEL_VERSION = 'timeL'
+DATA_DIR = f"..\\train_set\\{MODEL_VERSION}"
 
-CHECKPOINT_BASENAME = f"model_checkpoint_{MODEL_VERSION}"
+CHECKPOINT_BASENAME = f"model_{MODEL_VERSION}"
 CHECKPOINT_NAME = f"{CHECKPOINT_BASENAME}.ckpt"
 CHECKPOINT_DIR = 'saved_models'
 
