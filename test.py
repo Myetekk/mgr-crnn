@@ -8,18 +8,21 @@ from model import TabulatureLightningModel
 from torchmetrics.functional.text import char_error_rate, word_error_rate
 
 MODELS_TO_TEST = {
-    "noiseH": "saved_models/model_noiseH.ckpt",
-    "noiseM": "saved_models/model_noiseM.ckpt",
-    "noiseL": "saved_models/model_noiseL.ckpt",
-    "addH": "saved_models/model_addH.ckpt",
-    "addM": "saved_models/model_addM.ckpt",
-    "addL": "saved_models/model_addL.ckpt",
-    "timeH": "saved_models/model_timeH.ckpt",
-    "timeM": "saved_models/model_timeM.ckpt",
-    "timeL": "saved_models/model_timeL.ckpt",
+    "noise_MAX": "saved_models/model_noise_MAX.ckpt",
+    "noise_MID": "saved_models/model_noise_MID.ckpt",
+    "noise_MIN": "saved_models/model_noise_MIN.ckpt",
+    "add_MAX": "saved_models/model_add_MAX.ckpt",
+    "add_MID": "saved_models/model_add_MID.ckpt",
+    "add_MIN": "saved_models/model_add_MIN.ckpt",
+    "time_MAX": "saved_models/model_time_MAX.ckpt",
+    "time_MID": "saved_models/model_time_MID.ckpt",
+    "time_MIN": "saved_models/model_time_MIN.ckpt",
+    "all_MAX": "saved_models/model_all_MAX.ckpt",
+    "all_MID": "saved_models/model_all_MID.ckpt",
+    "all_MIN": "saved_models/model_all_MIN.ckpt",
 }
 
-DATA_DIR = '..\\testset'
+DATA_DIR = '..\\test_set'
 RESULTS_DIR = '..\\results'
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -246,13 +249,13 @@ def test_all_models():
             "wer_accuracy": f"{word_accuracy_pct:.3f}%"
         }
 
-    master_summary_path = os.path.join(master_output_dir, "_master_summary.txt")
+    master_summary_path = os.path.join(master_output_dir, "master_summary.txt")
     with open(master_summary_path, "w", encoding="utf-8") as f:
         f.write("=== ZBIORCZE PODSUMOWANIE EKSPERYMENTÓW ===\n\n")
         f.write(f"{'Model':<10} | {'Idealne (Exact)':<16} | {'Skuteczność znaków (CER)':<26} | {'Skuteczność tokenów (WER)':<26}\n")
         f.write("-" * 90 + "\n")
 
-        for m_name in ["weak", "medium", "good"]:
+        for m_name in MODELS_TO_TEST.keys():
             if m_name in master_results:
                 res = master_results[m_name]
                 f.write(f"{m_name.upper():<10} | {res['exact_matches']:<16} | {res['cer_accuracy']:<26} | {res['wer_accuracy']:<26}\n")

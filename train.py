@@ -14,15 +14,18 @@ import glob
 
 torch.set_float32_matmul_precision('medium')
 
-# MODEL_VERSION = 'noiseH'
-# MODEL_VERSION = 'noiseM'
-# MODEL_VERSION = 'noiseL'
-MODEL_VERSION = 'addH'
-# MODEL_VERSION = 'addM'
-# MODEL_VERSION = 'addL'
-# MODEL_VERSION = 'timeH'
-# MODEL_VERSION = 'timeM'
-# MODEL_VERSION = 'timeL'
+# MODEL_VERSION = 'noise_MAX'
+# MODEL_VERSION = 'noise_MID'
+# MODEL_VERSION = 'noise_MIN'
+# MODEL_VERSION = 'add_MAX'
+# MODEL_VERSION = 'add_MID'
+# MODEL_VERSION = 'add_MIN'
+# MODEL_VERSION = 'time_MAX'
+# MODEL_VERSION = 'time_MID'
+# MODEL_VERSION = 'time_MIN'
+MODEL_VERSION = 'all_MAX'
+# MODEL_VERSION = 'all_MID'
+# MODEL_VERSION = 'all_MIN'
 DATA_DIR = f"..\\train_set\\{MODEL_VERSION}"
 
 CHECKPOINT_BASENAME = f"model_{MODEL_VERSION}"
